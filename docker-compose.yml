@@ -1,0 +1,138 @@
+version: '3.8'
+
+# ============================================
+# Services Definition
+# ============================================
+
+services:
+  # Web Application Service
+  web:
+    # Build from local Dockerfile
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    
+    # Container name
+    container_name: web-app
+    
+    # Port mapping
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    
+    # Environment variables
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-password123}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-myapp}
+    
+    # Volume mounts
+    volumes:
+      - ./app:/app
+      - /app/node_modules
+    
+    # Service dependencies
+    depends_on:
+      db:
+        condition: service_healthy
+    
+    # Network
+    networks:
+      - app-network
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits (optional)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '0.5'
+    #       memory: 512M
+    #     reservations:
+    #       cpus: '0.25'
+    #       memory: 256M
+
+  # PostgreSQL Database Service
+  db:
+    image: postgres:15-alpine
+    
+    container_name: postgres-db
+    
+    # Port mapping
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    
+    # Environment variables for PostgreSQL
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-password123}
+      - POSTGRES_DB=${DB_NAME:-myapp}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=en_US.UTF-8
+    
+    # Volume for persistent data (IMPORTANT!)
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # Optional: Initialize database with SQL script
+      # - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    
+    # Network
+    networks:
+      - app-network
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-myapp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    
+    # Resource limits (optional)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '1'
+    #       memory: 1G
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 512M
+
+# ============================================
+# Networks Definition
+# ============================================
+
+networks:
+  app-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ============================================
+# Volumes Definition
+# ============================================
+
+volumes:
+  db_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./db_data  # Local path for data persistence
