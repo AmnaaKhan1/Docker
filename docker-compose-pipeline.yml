@@ -1,15 +1,12 @@
 version: '3.8'
 
 services:
-  web:
-    # Build from Dockerfile in the repo
+  web-pipeline:
     build:
       context: ./app
       dockerfile: Dockerfile
     
     container_name: web-pipeline
-    
-    # Different port for pipeline (not 3000)
     ports:
       - "3001:3000"
     
@@ -18,12 +15,12 @@ services:
       - PORT=3000
       - DB_USER=postgres
       - DB_PASSWORD=pipeline_password123
-      - DB_HOST=db-pipeline
+      - DB_HOST=postgres-pipeline  # ← CORRECTED (was db-pipeline)
       - DB_PORT=5432
       - DB_NAME=pipeline_db
     
     depends_on:
-      db:
+      postgres-pipeline:  # ← CORRECTED (was db-pipeline)
         condition: service_healthy
     
     networks:
@@ -36,14 +33,12 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s  # Increased from 40s
 
-  db:
+  postgres-pipeline:  # ← This is the actual container name
     image: postgres:15-alpine
     
-    container_name: postgres-pipeline
-    
-    # Different port for pipeline (not 5432)
+    container_name: postgres-pipeline  # ← This must match DB_HOST above
     ports:
       - "5433:5432"
     
@@ -71,6 +66,9 @@ services:
 networks:
   pipeline-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
 
 volumes:
   pipeline_db_data:
