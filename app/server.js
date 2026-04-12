@@ -21,7 +21,7 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'myapp',
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000,
 });
 
 // Handle pool errors
@@ -359,10 +359,26 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
 
+async function connectWithRetry(retries = 5, delay = 5000) {
+  while (retries) {
+    try {
+      console.log('Trying to connect to DB...');
+      await initDB();
+      console.log(' Connected to DB');
+      return;
+    } catch (err) {
+      console.error(` DB connection failed. Retries left: ${retries - 1}`);
+      retries--;
+      if (retries === 0) throw err;
+      await new Promise(res => setTimeout(res, delay));
+    }
+  }
+}
+
 async function startServer() {
   try {
     // Initialize database first
-    await initDB();
+    await connectWithRetry();
     
     // Start listening
     app.listen(PORT, HOST, () => {
