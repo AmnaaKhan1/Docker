@@ -84,7 +84,10 @@ pipeline {
                 script {
                     sh '''
                         echo "Stopping previous deployment..."
-                        docker-compose -f docker-compose-pipeline.yml down 2>/dev/null || true
+                        docker-compose -f docker-compose-pipeline.yml down --remove-orphans || true
+
+                        docker rm -f postgres-pipeline 2>/dev/null || true
+                        docker rm -f web-pipeline 2>/dev/null || true
                         
                         echo "Starting new deployment..."
                         docker-compose -f docker-compose-pipeline.yml up -d
