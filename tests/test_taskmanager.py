@@ -102,7 +102,7 @@ class TestTC04_FormPresence:
         assert title_input.is_displayed()
         assert desc_input.is_displayed()
         assert submit_btn.is_displayed()
-        assert "Add Task" in submit_btn.text
+        assert "ADD TASK" in submit_btn.text.upper()
 
 
 # ══════════════════════════════════════════════
